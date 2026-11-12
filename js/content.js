@@ -427,5 +427,5 @@ export const PARTNERS = [
   ['saudia-private', 'السعودية الخاصة'], ['saudia-cargo', 'السعودية للشحن'], ['saudia-real-estate', 'السعودية العقارية'],
   ['saudia-royal-fleet', 'أسطول السعودية الملكي'], ['flyadeal', 'طيران أديل'], ['medical-fakeeh', 'فقيه ميديكال'],
   ['sal', 'SAL'], ['sgs', 'SGS'], ['catrion', 'كاتريون'],
-  ['medlab', 'مختبرات ميدلاب'], ['az-academy', 'أكاديمية AZ الرياضية'],
+  ['medlab', 'مختبرات ميدلاب'], ['az-academy', 'أكاديمية AZ الرياضية'], ['key', 'المفتاح لتأجير السيارات'],
 ];
