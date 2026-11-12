@@ -30,7 +30,7 @@ requestAnimationFrame(function p(t) { if (!probing) return; if (probeLast) probe
 const lowPct = (arr) => { const d = arr.filter((x) => x > 3 && x < 40).sort((a, b) => a - b); return d.length >= 12 ? d[Math.floor(d.length * 0.2)] / 1000 : 0; };
 
 // ── المشهد ──
-const CPR = Math.min(devicePixelRatio || 1, 1.5); // دقة الشاشة النهائية (الكلام والحبيبات)
+const CPR = Math.min(devicePixelRatio || 1, coarse ? 2 : 1.5); // دقة الشاشة النهائية (الكلام والحبيبات). الجوال شاشته أكثف فياخذ سقف أعلى
 const renderer = new THREE.WebGLRenderer({ canvas, antialias: false, depth: false, stencil: false, powerPreference: 'high-performance' });
 renderer.setPixelRatio(CPR); renderer.setSize(W, H, false);
 renderer.toneMapping = THREE.NeutralToneMapping; renderer.toneMappingExposure = 1.0; // ألوان صريحة على خلفية فاتحة
@@ -62,7 +62,7 @@ let fx = null; // الانتقال بين الأقسام، ينضاف بعد ت�
 // ── الجودة تتكيف مع الجهاز: نقيس وقت كرت الشاشة لكل فريم ونعدّل دقة المشهد عشان الحركة تبقى ناعمة ──
 const PR_MIN = Math.min(CPR, 0.6);
 let pr = Math.min(CPR, 1), refresh = 1 / 60, div = 1, cool = 1.2, gpuAvg = 0, gpuPrev = 0, lagT = 0, tier = 0, shadowEvery = 2, budgetK = 0.6;
-const memo = [], recent = [];
+const memo = [], recent = []; let prCeil = CPR, calmT = 0;
 function setPR(v, force) { v = clamp(v, PR_MIN, CPR); if (!force && Math.abs(v - pr) < 0.03) return false; pr = v; post.setSize(W * pr, H * pr); return true; }
 post.onSample = (ms) => { const g = Math.max(ms, gpuPrev); gpuPrev = ms; gpuAvg = gpuAvg ? gpuAvg + (g - gpuAvg) * 0.12 : g; };
 function govern(raw) {
@@ -86,9 +86,11 @@ function govern(raw) {
       else if (div > 1 && k < 0.42) { div = 1; gpuAvg = 0; cool = 2; }
       else cool = 1;
     } else if (lagT > 0.8 && budgetK > 0.36) { budgetK *= 0.88; lagT = 0; cool = 0.6; } // كرت الشاشة مشغول بأشياء ثانية: نترك له مجال أكبر
+  } else if (!post.hasTimer && lagT < 0.05 && pr < prCeil - 0.02) { // الحركة ناعمة وفيه مجال: نرفع الدقة شوي شوي لين سقف الشاشة
+    calmT += 1; cool = 0.5; if (calmT >= 4) { calmT = 0; setPR(Math.min(prCeil, pr * 1.1)); cool = 1.4; }
   } else if (lagT > 0.5) { // المتصفح ما يعطي قياس مباشر: نراقب تأخر الفريمات ونخفف بالتدريج
-    lagT = 0; cool = 1;
-    if (pr > PR_MIN + 0.01) setPR(pr * 0.85);
+    lagT = 0; cool = 1; calmT = 0;
+    if (pr > PR_MIN + 0.01) { prCeil = Math.max(PR_MIN, pr * 0.92); setPR(pr * 0.85); } // وما نرجع نطلع فوق المستوى اللي علّق عنده
     else if (tier < 3) { tier++; if (tier === 1) post.setSamples(2); else if (tier === 2) shadowEvery = 4; else post.bloom = false; }
   }
 }
@@ -139,6 +141,11 @@ const MOVES = [
   { z: -30, ry: -1.5, s: 0.5 }, { x: -10, y: 2.2, s: 0.82 }, { y: 6, ry: 0.8, z: -10 }, { z: -44, y: -2, s: 0.72 },
 ];
 let enterT = 9, shadowNow = true, trans = null;
+// المقدمة عند أول فتح للموقع: الكاميرا تبدأ قريبة من الحوض وتطلع مع العمود وهو يتركب فقرة فقرة، بعدين تبعد ويدخل الكلام
+const INTRO = 3.2; let introT = 9, introRate = 1;
+if (!location.hash || location.hash === '#hero') document.body.classList.add('intro');
+function endIntro() { const c = document.body.classList; if (c.contains('intro')) { c.remove('intro'); c.add('intro-done'); } }
+addEventListener('pointerdown', () => { if (introT < INTRO) introRate = 3.5; }, { passive: true }); // ضغطة وقت المقدمة تسرّعها
 function pose(st, mv, k, flip) { // k: 0 في مكانه، 1 برا المسرح. flip يعكس الاتجاه الرأسي واللفّة (الدخول عكس الخروج)
   const g = st.group; if (!mv || k <= 0) { g.position.set(st.home, 0, 0); g.rotation.y = 0; g.scale.setScalar(1); return; }
   g.position.set(st.home + (mv.x || 0) * k, (mv.y || 0) * k * flip, (mv.z || 0) * k); g.rotation.y = (mv.ry || 0) * k * flip; g.scale.setScalar(1 + ((mv.s || 1) - 1) * k);
@@ -162,6 +169,7 @@ function runTrans(dt) {
 }
 function jump(i) {
   const prev = stations[current]; if (prev !== stations[i]) { prev.leave && prev.leave(); prev.group.visible = false; pose(prev, null); memo[current] = { pr, div }; }
+  if (introT < INTRO) { introT = 9; endIntro(); }
   current = i; activate(); enterT = 0; shadowNow = true;
   if (memo[i]) { div = memo[i].div; if (setPR(memo[i].pr)) gpuAvg = 0; cool = 1.2; } else div = 1; // كل قسم يتذكر الدقة اللي تناسبه
   const st = stations[i]; Object.assign(stage, stageFor(st)); viewTarget(st);
@@ -253,8 +261,16 @@ function tick(dt) {
   if (enterT < 9) enterT += dt;
   const sg = stageFor(st); for (const k of ['cx', 'cy', 'w', 'h']) stage[k] = damp(stage[k], sg[k], 4, dt);
   viewTarget(st);
+  if (introT < INTRO) {
+    introT += dt * introRate; const u = clamp(introT / INTRO, 0, 1), k = u * u * (3 - 2 * u), r = 0.46 + 0.54 * k, drop = (1 - k) * 2.1;
+    camLook.set(tLook.x, tLook.y - drop, tLook.z);
+    camPos.set(tLook.x + (tPos.x - tLook.x) * r + (1 - k) * 0.9, tLook.y + (tPos.y - tLook.y) * r - drop - (1 - k) * 0.9, tLook.z + (tPos.z - tLook.z) * r);
+    if (u > 0.58) endIntro();
+  } else {
   camPos.x = damp(camPos.x, tPos.x, 2.8, dt); camPos.y = damp(camPos.y, tPos.y, 2.8, dt); camPos.z = damp(camPos.z, tPos.z, 2.8, dt); camLook.x = damp(camLook.x, tLook.x, 3.4, dt); camLook.y = damp(camLook.y, tLook.y, 3.4, dt); camLook.z = damp(camLook.z, tLook.z, 3.4, dt);
-  const par = coarse ? 0 : camPos.distanceTo(camLook) * 0.022;
+  }
+  const camD = camPos.distanceTo(camLook); scene.fog.density = Math.min(0.02, 0.2 / Math.max(camD, 1)); // الضباب يتبع بعد الكاميرا: المجسم اللي نشوفه يبقى واضح حتى لو الكاميرا بعيدة (الجوال)
+  const par = coarse ? 0 : camD * 0.022;
   camera.position.set(camPos.x + pointer.x * par, camPos.y + pointer.y * par * 0.6, camPos.z); camera.lookAt(camLook);
   camera.setViewOffset(W, H, (0.5 - stage.cx) * W, (0.5 - stage.cy) * H, W, H);
   if (fx && fx.active) fx.camera.setViewOffset(W, H, (0.5 - stage.cx) * W, (0.5 - stage.cy) * H, W, H); // الفقرة في نص المسرح، مو نص الشاشة
@@ -307,7 +323,8 @@ async function start() {
   started = true; activate();
   // نقيس كم ياخذ الفريم على هذا الجهاز ونختار دقة البداية على أساسه، بدل ما نبدأ ثقيل ونخفف قدام المستخدم
   try {
-    const base = Math.min(CPR, 1); setPR(base, true);
+    // بدون قياس مباشر (آيفون مثلاً) نبدأ قريب من دقة الشاشة وننزل لو علّقت، بدل ما نبقى على دقة واطية للأبد
+    const base = post.hasTimer ? Math.min(CPR, 1) : coarse ? CPR * 0.85 : Math.min(CPR, 1); setPR(base, true);
     if (post.hasTimer) {
       const got = []; const keep = post.onSample; post.onSample = (ms) => got.push(ms);
       for (let i = 0; i < 9; i++) { renderer.shadowMap.needsUpdate = !coarse; draw(); await new Promise((r) => setTimeout(r, 16)); }
@@ -322,6 +339,6 @@ async function start() {
   window.__erth = { tick: (n = 60, dt = 1 / 30) => { for (let i = 0; i < n; i++) tick(dt); }, go, jump, ctx, pick, stations, pause: (v = true) => { paused = v; }, setPR, step, dbg: { post, key, scene, renderer }, get stats() { return { pr: +pr.toFixed(2), hz: Math.round(1 / refresh), gpuMs: +gpuAvg.toFixed(1), tier, div, budgetK: +budgetK.toFixed(2) }; }, get fx() { return fx; }, get current() { return current; } }; // للفحص والتجربة
   requestAnimationFrame(frame);
   // الافتتاحية: تختفي شاشة التحميل، والقسم يبدأ حركته من أولها (المجسمات تدخل من تحت)
-  setTimeout(() => { document.getElementById('loader').classList.add('done'); const s0 = stations[current]; s0.enter && s0.enter(); enterT = 0; if (!s0.ownIntro) { trans = { to: current, t: 0, phase: 1, mv: MOVES[3], dir: 1 }; switching = true; ui.fxIn(true); } }, 350);
+  setTimeout(() => { document.getElementById('loader').classList.add('done'); const s0 = stations[current]; s0.enter && s0.enter(); enterT = 0; if (s0.ownIntro && document.body.classList.contains('intro')) introT = 0; else endIntro(); if (!s0.ownIntro) { trans = { to: current, t: 0, phase: 1, mv: MOVES[3], dir: 1 }; switching = true; ui.fxIn(true); } }, 350);
 }
 start().catch((e) => { console.error(e); document.getElementById('loadtxt').textContent = 'تعذّر تحميل الجولة. حدّث الصفحة وحاول مرة ثانية.'; });

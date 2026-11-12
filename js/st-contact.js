@@ -31,7 +31,7 @@ export default function createContact(ctx) {
   const { ui } = ctx;
   const group = new THREE.Group(), pickables = [], items = [];
   const logo = new THREE.Mesh(new THREE.PlaneGeometry(2.7, 3.82), new THREE.MeshBasicMaterial({ map: loadTexture('assets/img/erth-logo.webp'), transparent: true, depthWrite: false })); group.add(logo);
-  const gems = [0, 1, 2].map((i) => { const g = crystal(0.36, i === 1 ? C.teal2 : C.purple2); group.add(g); return g; });
+  const gems = [0, 1, 2].map((i) => { const g = crystal(0.34, i === 1 ? C.teal : C.purple); group.add(g); return g; });
   group.add(podium(4.2, C.teal));
   const geo = new RoundedBoxGeometry(1.2, 1.2, 0.34, 5, 0.17);
   CHANNELS.forEach((ch, i) => {
@@ -57,7 +57,7 @@ export default function createContact(ctx) {
         it.tok.rotation.y = Math.sin(t * 0.6 + it.i * 0.9) * 0.22 * (1 - it.k) + it.k * Math.sin(t * 3) * 0.08; it.tok.rotation.x = Math.sin(t * 0.5 + it.i) * 0.08 * (1 - it.k);
         it.holder.scale.setScalar(1 + it.k * 0.16); it.mat.emissiveIntensity = 0.12 + it.k * 1.1;
       }
-      const lp = logo.position; gems.forEach((g, i) => { const a = t * 0.4 + (i / 3) * Math.PI * 2; g.position.set(lp.x + Math.cos(a) * 2.2, lp.y + Math.sin(a * 1.3) * 0.5, lp.z + Math.sin(a) * 0.9); g.rotation.y = t + i; });
+      const lp = logo.position; gems.forEach((g, i) => { const a = t * 0.4 + (i / 3) * Math.PI * 2; g.position.set(lp.x + Math.cos(a) * 2.2, lp.y + Math.sin(a * 1.3) * 0.5, lp.z + Math.sin(a) * 0.9); g.rotation.y = Math.sin(t * 0.8 + i * 2) * 0.55; });
       logo.position.y += Math.sin(t * 0.8) * 0.0015;
     },
     hover(it) { hover = it; if (it) ui.showTip(it.ch.label, it.ch.value, ctx.pointer.px, ctx.pointer.py); else ui.hideTip(); },

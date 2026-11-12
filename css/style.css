@@ -376,3 +376,36 @@ body.panel-open #panelBody > * { opacity: 1; transform: none; transition: opacit
   #leader { display: none; }
 }
 @media (prefers-reduced-motion: reduce) { * { animation-duration: .01ms !important; transition-duration: .01ms !important; } }
+
+/* ── طبقة واضحة: وجوه الكروت كعناصر HTML فوق المجسمات (دقة الشاشة الكاملة) ── */
+.crisp { position: fixed; inset: 0; z-index: 12; pointer-events: none; overflow: hidden; transition: opacity .3s ease; }
+.crisp > * { position: absolute; left: 0; top: 0; max-width: none; transform-origin: 0 0; will-change: transform; backface-visibility: hidden; user-select: none; -webkit-user-select: none; }
+body.fx-on .crisp, body.fx-in .crisp { opacity: 0; transition: opacity .12s ease; }
+.crisp img { -webkit-user-drag: none; }
+.xcard, .pcard { background: #fff; overflow: hidden; display: flex; flex-direction: column; direction: rtl; color: #171b45; }
+.xcard { border-radius: 10px; }
+.xc-img { position: relative; flex: none; height: 57.33%; background: linear-gradient(135deg, #4953A1, #40B6B2); }
+.xc-img img, .pc-img img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.xc-area { position: absolute; top: 12px; right: 12px; padding: 5px 14px; border-radius: 999px; background: rgba(255,255,255,.95); color: #13807a; font-weight: 700; font-size: 14.5px; line-height: 1.5; }
+.xc-play { position: absolute; left: 16px; top: 57.33%; width: 52px; height: 52px; margin-top: -26px; border-radius: 50%; background: #40B6B2; border: 3px solid #fff; box-sizing: border-box; }
+.xc-play::after { content: ''; position: absolute; left: 50%; top: 50%; margin: -10px 0 0 -6px; border: 10px solid transparent; border-left: 16px solid #fff; border-right: 0; }
+.xc-txt { flex: 1; min-height: 0; display: flex; flex-direction: column; justify-content: center; gap: 3px; padding: 16px 18px 10px; text-align: right; }
+.xc-txt b { font-size: 26px; font-weight: 800; line-height: 1.42; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.xc-txt small { font-size: 13px; color: #555b88; text-align: left; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; line-height: 1.5; }
+.xc-txt em { font-style: normal; font-size: 13.5px; font-weight: 700; color: #13807a; border-top: 1px solid rgba(73,83,161,.16); padding-top: 6px; margin-top: 2px; line-height: 1.5; }
+.pcard { border-radius: 12px; }
+.pc-img { position: relative; flex: none; height: 69.23%; background: #191c40; }
+.pc-img .xc-play { left: 50%; top: 50%; width: 66px; height: 66px; margin: -33px 0 0 -33px; background: rgba(64,182,178,.94); }
+.pc-img .xc-play::after { margin: -13px 0 0 -7px; border-width: 13px; border-left-width: 21px; }
+.pc-txt { flex: 1; min-height: 0; display: flex; flex-direction: column; justify-content: center; gap: 0; padding: 6px 22px 8px; text-align: right; }
+.pc-txt b { font-size: 24px; font-weight: 800; line-height: 1.45; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.pc-txt small { font-size: 17px; font-weight: 600; color: #13807a; line-height: 1.5; }
+
+/* ── المقدمة عند أول فتح: الكلام والأزرار ينتظروا لين العمود يتركب، بعدين يدخلوا واحد ورا الثاني ── */
+body.intro #title > * { opacity: 0; transform: translateY(28px); transition: none; }
+body.intro :is(#top, #dock, #rail) { opacity: 0; }
+body.intro-done :is(#top, #dock, #rail) { animation: introFade 1s ease both; }
+@keyframes introFade { from { opacity: 0; } to { opacity: 1; } }
+#loader { transition: opacity .6s ease, visibility .6s; }
+#loader img { transition: transform .8s var(--ease); }
+#loader.done img { transform: scale(1.16); }

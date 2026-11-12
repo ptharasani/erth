@@ -2,10 +2,10 @@
 // والتمارين اللي عليها علامة التشغيل تشتغل داخل الموقع مباشرة. على الجوال: كرت كبير في النص والتنقل بالأسهم.
 import * as THREE from 'three';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
-import { C, damp, clamp, easeOut, Spinner, softFloor } from './lib.js';
+import { C, damp, clamp, easeOut, Spinner, softFloor, crispLayer } from './lib.js';
 import { EXERCISES, LIBRARY } from './content.js';
 
-const CW = 1.5, CH = 1.875, TEX_W = 600, TEX_H = 750, IMG_H = 430;
+const CW = 1.5, CH = 1.875, TEX_W = 600, TEX_H = 750, IMG_H = 430, PER = 5, GAPX = 0.22; // PER: عدد الكروت في كل رف
 const TWO = Math.PI * 2, wrap = (x) => ((x + Math.PI) % TWO + TWO) % TWO - Math.PI, sstep = (a, b, x) => { const t = Math.min(1, Math.max(0, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
 
 // غلاف التمرين: مساحة الصورة فوق (تدرج بألوان إرث ورقم التمرين لين تجهز الصورة)، والاسم والمنطقة تحت
@@ -40,7 +40,7 @@ function cover(ex, i) {
 }
 
 export default function createLibrary(ctx) {
-  const { ui } = ctx;
+  const { ui } = ctx, crisp = crispLayer(ctx, 'lib'); // وجه كل كرت ينرسم كعنصر HTML فوق الكرت: الصورة والكلام بدقة الشاشة الكاملة
   const group = new THREE.Group(), ring = new THREE.Group(), shelves = new THREE.Group(), pickables = [], items = []; group.add(ring, shelves);
   const N = EXERCISES.length, spin = new Spinner(TWO / N), R = 3.6;
   const geo = new RoundedBoxGeometry(CW, CH, 0.06, 4, 0.03), side = new THREE.MeshStandardMaterial({ color: 0xf2f3fa, roughness: 0.45, metalness: 0 });
@@ -49,34 +49,35 @@ export default function createLibrary(ctx) {
     const front = new THREE.MeshBasicMaterial({ color: 0xffffff }), card = new THREE.Mesh(geo, [side, side, side, side, front, side]), slot = new THREE.Group(); slot.add(card); ring.add(slot);
     const frame = new THREE.LineSegments(frameGeo, new THREE.LineBasicMaterial({ color: C.teal, transparent: true, opacity: 0, toneMapped: false })); frame.position.z = 0.035; card.add(frame);
     const it = { ex, i, slot, card, front, frame, k: 0, a: (i / N) * TWO, col: 0, row: 0, base: new THREE.Vector3() }; card.userData.pick = it; pickables.push(card); items.push(it);
+    it.o = crisp.add(ui.el('div', 'xcard', `<div class="xc-img">${ex.img ? `<img src="assets/img/exercises/${ex.id}.webp" alt="" draggable="false" decoding="async">` : ''}<span class="xc-area">${ex.area}</span></div><i class="xc-play"></i><div class="xc-txt"><b>${ex.name}</b><small dir="ltr">${ex.en}</small><em>اضغط للتشغيل هنا</em></div>`), 320, 400);
   });
   // الرفّين
   const plankMat = new THREE.MeshStandardMaterial({ color: 0xe3e6f6, roughness: 0.35, metalness: 0, envMapIntensity: 0.8 }), lipMat = new THREE.MeshBasicMaterial({ color: C.teal, toneMapped: false });
-  const ROW_Y = [2.72, 0.42], ROW_W = 4 * CW + 3 * 0.3 + 0.7;
+  const ROW_Y = [2.72, 0.42], ROW_W = PER * CW + (PER - 1) * GAPX + 0.6;
   ROW_Y.forEach((y) => { const p = new THREE.Mesh(new RoundedBoxGeometry(ROW_W, 0.07, 0.8, 3, 0.03), plankMat); p.position.set(0, y - 0.035, 0.12); p.castShadow = p.receiveShadow = true; const lip = new THREE.Mesh(new THREE.BoxGeometry(ROW_W - 0.1, 0.012, 0.012), lipMat); lip.position.set(0, y - 0.035, 0.525); shelves.add(p, lip); });
   const floor = softFloor(4.6); group.add(floor);
 
   let hover = null, loaded = false, inT = 9, carousel = false, shown = null;
   const nav = ui.el('div', 'seg glass'), bPrev = ui.el('button', '', '› السابق'), bNext = ui.el('button', '', 'التالي ‹'), who = ui.el('button', 'who', '<b></b><small></small>');
   bPrev.onclick = () => spin.stepBy(1); bNext.onclick = () => spin.stepBy(-1); who.onclick = () => { if (shown) play(shown); }; nav.append(bPrev, who, bNext);
-  function play(it) { const ex = it.ex; if (ex.inline) ui.openVideo(ex.yt, ex.name, ex.area); else ui.openLink(`https://www.youtube.com/watch?v=${ex.yt}&list=${LIBRARY.list}`); }
+  function play(it) { const ex = it.ex; ui.openVideo(ex.yt, ex.name, ex.area, LIBRARY.list); } // كل التمارين تشتغل داخل الموقع، ومعها رابط يوتيوب
   function layout() {
     carousel = ctx.mobile(); shelves.visible = !carousel; st.tools = carousel ? nav : null; st.drag = carousel ? (dx) => spin.drag(dx) : null;
     items.forEach((it) => {
-      it.col = it.i % 4; it.row = Math.floor(it.i / 4);
+      it.col = it.i % PER; it.row = Math.floor(it.i / PER);
       if (carousel) { it.slot.position.set(Math.sin(it.a) * R, 0, Math.cos(it.a) * R); it.slot.rotation.y = it.a; }
-      else { it.slot.position.set(0, 0, 0); it.slot.rotation.y = 0; it.base.set((1.5 - it.col) * (CW + 0.3), ROW_Y[it.row] + CH / 2 + 0.015, 0.1); } // من اليمين لليسار
+      else { it.slot.position.set(0, 0, 0); it.slot.rotation.y = 0; it.base.set(((PER - 1) / 2 - it.col) * (CW + GAPX), ROW_Y[it.row] + CH / 2 + 0.015, 0.1); } // من اليمين لليسار
     });
     ring.rotation.y = 0; floor.position.set(0, 0, carousel ? R : 0.5); floor.scale.setScalar(carousel ? 0.7 : 1.1);
-    st.view = carousel ? { look: [0, 1.5, R + 0.3], dir: [0, 0.05, 1], fitW: 2.5, fitH: 2.75 } : { look: [0, 2.42, 0], dir: [0.09, 0.05, 1], fitW: ROW_W + 0.9, fitH: 5.5 };
+    st.view = carousel ? { look: [0, 1.5, R + 0.3], dir: [0, 0.05, 1], fitW: 2.0, fitH: 2.45 } : { look: [0, 2.42, 0], dir: [0.09, 0.05, 1], fitW: ROW_W + 0.6, fitH: 5.4 };
   }
   const st = {
     id: 'library', group, pickables, view: null, tools: null, drag: null, resize: layout,
     prepare() { if (loaded) return; loaded = true; items.forEach((it) => { it.front.map = cover(it.ex, it.i); it.front.needsUpdate = true; ctx.renderer.initTexture(it.front.map); }); },
-    enter() { inT = 0; if (carousel) { const base = Math.round(spin.angle / spin.step) * spin.step; spin.angle = base + spin.step * 1.5; spin.vel = 0; spin.target = base; } },
-    leave() { hover = null; spin.target = null; },
+    enter() { inT = 0; ui.warmVideo(); if (carousel) { const base = Math.round(spin.angle / spin.step) * spin.step; spin.angle = base + spin.step * 1.5; spin.vel = 0; spin.target = base; } },
+    leave() { hover = null; spin.target = null; crisp.hide(); },
     update(dt, t) {
-      inT += dt;
+      inT += dt; crisp.show();
       if (carousel) {
         spin.update(dt, !!hover); ring.rotation.y = spin.angle; let near = null, nd = 9;
         for (const it of items) {
@@ -84,6 +85,7 @@ export default function createLibrary(ctx) {
           const d = Math.abs(wrap(it.a + spin.angle)) / spin.step, vis = 1 - sstep(1.3, 1.85, d), front = Math.max(0, 1 - d); if (d < nd) { nd = d; near = it; }
           it.slot.visible = vis > 0.01; it.card.scale.setScalar(Math.max(0.001, (0.8 + front * 0.3) * vis)); it.card.position.set(0, 1.5, front * 0.6); it.card.rotation.set(0, 0, 0);
           it.frame.material.opacity = front * 0.5; it.front.color.setScalar(0.82 + front * 0.18);
+          if (vis > 0.01) crisp.place(it.o, it.card, CW / 2, CH / 2, 0.031, 0.82 + front * 0.18); else crisp.off(it.o);
         }
         if (near !== shown) { shown = near; who.firstChild.textContent = near.ex.name; who.lastChild.textContent = near.ex.inline ? 'اضغط للتشغيل هنا' : 'اضغط لفتحه على يوتيوب'; }
         return;
@@ -93,7 +95,7 @@ export default function createLibrary(ctx) {
         const e = easeOut(clamp((inT - 0.1 - (it.row * 0.16 + it.col * 0.06)) / 0.55, 0, 1)); // الكروت تنزل على الرف واحد ورا واحد
         it.card.position.set(it.base.x, it.base.y + (1 - e) * 1.1 + it.k * 0.12, it.base.z + it.k * 0.4 + Math.sin(t * 0.8 + it.i) * 0.006);
         it.card.rotation.set(-0.07 * (1 - it.k), 0, (1 - e) * (it.col % 2 ? 0.12 : -0.12)); it.card.scale.setScalar(Math.max(0.001, (0.75 + 0.25 * e) * (1 + it.k * 0.06)));
-        it.frame.material.opacity = it.k * 0.95; it.front.color.setScalar(1);
+        it.frame.material.opacity = it.k * 0.95; it.front.color.setScalar(1); crisp.place(it.o, it.card, CW / 2, CH / 2, 0.031, 1);
       }
     },
     hover(it) { hover = it; if (it) ui.showTip(it.ex.name, it.ex.inline ? 'اضغط للتشغيل هنا' : 'اضغط لفتحه على يوتيوب', ctx.pointer.px, ctx.pointer.py); else ui.hideTip(); },

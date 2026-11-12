@@ -18,12 +18,12 @@ export const SLOGAN = 'نمنح قيمة... نترك أثرًا... ونصنع إ
 
 export const STATIONS = [
   { id: 'hero', nav: 'البداية', kicker: 'Erth Medicare Center', title: 'مركز إرث الرعاية الطبية', sub: 'مركز متخصص في العلاج الطبيعي وإعادة التأهيل', hint: 'كل مجموعة فقرات تودّيك لقسم: اضغط عليها، أو مرّر للأسفل', touch: 'اضغط على أي قسم على العمود، أو اسحب للأعلى' },
-  { id: 'about', nav: 'من نحن', kicker: 'هوية إرث', title: 'من نحن؟', sub: 'كل بلّورة تحكي جزء من قصتنا', hint: 'أشّر على أي بلّورة، واضغط عليها لتفتح', touch: 'اضغط على أي بلّورة لتفتح' },
+  { id: 'about', nav: 'من نحن', kicker: 'هوية إرث', title: 'من نحن؟', sub: 'نقاط شعارنا، كل وحدة تحكي جزء من قصتنا', hint: 'أشّر على أي نقطة، واضغط عليها لتفتح', touch: 'اضغط على أي نقطة لتفتح' },
   { id: 'body', nav: 'الخدمات والإصابات', kicker: 'خدماتنا العلاجية', title: 'وين الألم؟', sub: 'في مركز إرث، نقدم رعاية علاجية مخصصة', hint: 'أشّر على أي مفصل أو فقرة أو عضلة، واضغط للتفاصيل. اسحب لتدوير الجسم', touch: 'اضغط على أي نقطة للتفاصيل، واسحب يمين ويسار لتدوير الجسم' },
   { id: 'tools', nav: 'الأدوات والأجهزة', kicker: 'داخل الجلسة', title: 'أدواتنا وأجهزتنا', sub: 'كل أداة لها دور داخل خطة علاجية مخصصة', hint: 'أشّر على أي أداة لتشوف أشكالها، واضغط للتفاصيل. اسحب لتدوير المنصة', touch: 'اسحب لتدوير المنصة، واضغط على أي أداة' },
   { id: 'team', nav: 'الأخصائيون', kicker: 'فريق إرث', title: 'الأخصائيون', sub: 'أخصائيون وأخصائيات علاج طبيعي', hint: 'اسحب أو استخدم الأسهم للتنقل بين الأخصائيين، واضغط على الصورة للمؤهلات والحجز' },
-  { id: 'podcast', nav: 'بودكاست إرث', kicker: 'تابعونا على يوتيوب', title: '#بودكاست_إرث', sub: 'حوارات مع مختصين وضيوف ملهمين', hint: 'اضغط على أي حلقة لمشاهدتها على يوتيوب' },
-  { id: 'library', nav: 'مكتبة التمارين', kicker: 'مجاناً على يوتيوب', title: 'أكبر مكتبة تمارين مجانية', sub: 'أكثر من 280 تمرين مصوّر بشرح واضح، تتمرن معها في أي وقت', hint: 'اضغط على أي تمرين لمشاهدته. التمارين اللي عليها علامة التشغيل تشتغل هنا مباشرة' },
+  { id: 'podcast', nav: 'بودكاست إرث', kicker: 'تابعونا على يوتيوب', title: '#بودكاست_إرث', sub: 'حوارات مع مختصين وضيوف ملهمين', hint: 'اضغط على الحلقة لتشتغل هنا، وتنقّل بين الحلقات بالأسهم أو بالسحب' },
+  { id: 'library', nav: 'مكتبة التمارين', kicker: 'مجاناً على يوتيوب', title: 'أكبر مكتبة تمارين مجانية', sub: 'أكثر من 280 تمرين مصوّر بشرح واضح، تتمرن معها في أي وقت', hint: 'اضغط على أي تمرين ليشتغل هنا مباشرة' },
   { id: 'partners', nav: 'شركاؤنا', kicker: 'نعتز بثقتهم', title: 'شركاؤنا', sub: '', hint: 'أشّر على أي شعار ليقترب ويظهر اسمه', touch: 'اضغط على أي شعار ليظهر اسمه' },
   { id: 'contact', nav: 'تواصل واحجز', kicker: 'شكراً لكم', title: 'ونسعد بالإجابة على اسئلتكم', sub: SLOGAN, hint: 'اضغط على أي أيقونة للتواصل المباشر' },
 ];
@@ -407,17 +407,19 @@ export const PODCAST = [
 
 // ───────────── الشركاء ─────────────
 // ───────────── مكتبة التمارين (قناة إرث على يوتيوب) ─────────────
-// inline: التمرين يشتغل داخل الموقع. img: true لما تكون صورة التمرين موجودة في assets/img/exercises/<id>.webp
+// عشرة تمارين كلها تشتغل داخل الموقع. الأول للأبهر، الثاني للديسك، الثالث لخشونة الركبة. img: true لما تكون صورة التمرين موجودة في assets/img/exercises/<id>.webp
 export const LIBRARY = { playlist: 'https://www.youtube.com/playlist?list=PLda1pWpMdaj8', list: 'PLda1pWpMdaj8' };
 export const EXERCISES = [
+  { id: 'trap-stretch', yt: 'r0sOetRrI7A', name: 'إطالة الترابيز', en: 'Trapezius Stretch', area: 'الأبهر وأعلى الظهر', inline: true, img: true },
+  { id: 'bird-dog', yt: 'iPmoy9pH_AE', name: 'الطائر والكلب', en: 'Bird Dog', area: 'الديسك وأسفل الظهر', inline: true, img: true },
+  { id: 'slr', yt: '7XimvgjTxh4', name: 'رفع الساق مستقيمة', en: 'Straight Leg Raise', area: 'خشونة الركبة', inline: true, img: true },
   { id: 'wall-angel', yt: 'pSwb2c9YfbE', name: 'ملاك الجدار', en: 'Wall Angel', area: 'الكتف والوضعية', inline: true, img: true },
-  { id: 'slr', yt: '7XimvgjTxh4', name: 'رفع الساق مستقيمة', en: 'Straight Leg Raise', area: 'الركبة', inline: true, img: true },
-  { id: 'y-balance', yt: 'auZN72QkTtg', name: 'التوازن على شكل حرف Y', en: 'Y-Balance', area: 'التوازن والكاحل', img: true },
-  { id: 'trap-stretch', yt: 'r0sOetRrI7A', name: 'إطالة الترابيز', en: 'Trapezius Stretch', area: 'الرقبة', img: true },
-  { id: 'thoracic-roller', yt: '-98FwVZBQ34', name: 'مد الظهر الصدري بالفوم رولر', en: 'Thoracic Extension on Foam Roller', area: 'الظهر الصدري', img: true },
-  { id: 'superman', yt: 'VtAZyyrvf2k', name: 'سوبرمان', en: 'Superman', area: 'أسفل الظهر', img: true },
-  { id: 'bulgarian', yt: 'n_v_WSBVk5s', name: 'القرفصاء البلغارية', en: 'Bulgarian Split Squat', area: 'تقوية الرجلين', img: true },
-  { id: 'ulnar-glide', yt: 'USqFljFbW-k', name: 'انزلاق العصب الزندي', en: 'Ulnar Nerve Glide', area: 'الكوع واليد', img: true },
+  { id: 'glute-bridge', yt: 'S4DIodCHuwc', name: 'الجسر', en: 'Glute Bridge', area: 'أسفل الظهر والورك', inline: true, img: true },
+  { id: 'thoracic-roller', yt: '-98FwVZBQ34', name: 'مد الظهر الصدري بالفوم رولر', en: 'Thoracic Extension on Foam Roller', area: 'الظهر الصدري', inline: true, img: true },
+  { id: 'superman', yt: 'VtAZyyrvf2k', name: 'سوبرمان', en: 'Superman', area: 'عضلات الظهر', inline: true, img: true },
+  { id: 'bulgarian', yt: 'n_v_WSBVk5s', name: 'القرفصاء البلغارية', en: 'Bulgarian Split Squat', area: 'تقوية الرجلين', inline: true, img: true },
+  { id: 'y-balance', yt: 'auZN72QkTtg', name: 'التوازن على شكل حرف Y', en: 'Y-Balance', area: 'التوازن والكاحل', inline: true, img: true },
+  { id: 'ulnar-glide', yt: 'USqFljFbW-k', name: 'انزلاق العصب الزندي', en: 'Ulnar Nerve Glide', area: 'الكوع واليد', inline: true, img: true },
 ];
 // الأدوات اللي صورها التطبيقية جاهزة في assets/img/tools/<id>-1..3.webp
 export const TOOL_IMAGES = ['bands', 'roller', 'graston', 'gun', 'needles', 'shockwave', 'laser', 'tecar', 'ultrasound', 'tens'];

@@ -140,14 +140,32 @@ export function openBooking({ who = null, problem = '' } = {}) {
   book.step = who ? 2 : 1; if (who) book.who = who; if (problem) book.problem = problem;
   state.modalOpen = true; modal.classList.add('on'); modal.setAttribute('aria-hidden', 'false'); renderBooking();
 }
-export function closeModal() { state.modalOpen = false; modal.classList.remove('on', 'video'); modal.setAttribute('aria-hidden', 'true'); if (modalBody.querySelector('iframe')) modalBody.innerHTML = ''; }
-// تشغيل فيديو يوتيوب داخل الموقع
-export function openVideo(yt, name, sub = '') {
+export function closeModal() { state.modalOpen = false; vidToken++; modal.classList.remove('on', 'video'); modal.setAttribute('aria-hidden', 'true'); if (modalBody.querySelector('.m-video')) modalBody.innerHTML = ''; }
+// تشغيل فيديو يوتيوب داخل الموقع. على الجوال وسفاري المتصفح ما يسمح بالتشغيل التلقائي للإطار العادي،
+// فنستخدم مشغل يوتيوب الرسمي ونأمره بالتشغيل أول ما يجهز (نفس ضغطة المستخدم).
+const needsApi = /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent) || (navigator.vendor || '').includes('Apple') || matchMedia('(pointer: coarse)').matches;
+let ytApi = null, vidToken = 0;
+function loadYT() {
+  if (!ytApi) ytApi = new Promise((res) => {
+    if (window.YT && window.YT.Player) return res(window.YT);
+    const prev = window.onYouTubeIframeAPIReady; window.onYouTubeIframeAPIReady = () => { prev && prev(); res(window.YT); };
+    const sc = document.createElement('script'); sc.src = 'https://www.youtube.com/iframe_api'; sc.async = true; document.head.append(sc);
+  });
+  return ytApi;
+}
+export function warmVideo() { if (needsApi) loadYT(); } // نحمّل المشغل من أول ما يدخل الزائر قسم فيه فيديوهات، عشان الضغطة تشغّل فوراً
+export function openVideo(yt, name, sub = '', list = '') {
   state.modalOpen = true; modal.classList.add('on', 'video'); modal.setAttribute('aria-hidden', 'false'); modalBody.innerHTML = ''; modalBody.scrollTop = 0;
-  const wrap = el('div', 'm-video'), f = document.createElement('iframe');
-  f.src = `https://www.youtube-nocookie.com/embed/${yt}?autoplay=1&rel=0&playsinline=1`; f.title = name; f.allow = 'autoplay; encrypted-media; picture-in-picture; fullscreen'; f.allowFullscreen = true; f.referrerPolicy = 'strict-origin-when-cross-origin';
-  wrap.append(f);
-  const act = el('div', 'm-actions'), a = el('a', 'btn ghost', 'افتح على يوتيوب'); a.href = `https://www.youtube.com/watch?v=${yt}`; a.target = '_blank'; a.rel = 'noopener'; act.append(a);
+  const wrap = el('div', 'm-video'), token = ++vidToken;
+  if (needsApi) {
+    const holder = document.createElement('div'); wrap.append(holder);
+    loadYT().then((YT) => { if (token !== vidToken || !holder.isConnected) return; new YT.Player(holder, { width: '100%', height: '100%', videoId: yt, playerVars: { autoplay: 1, playsinline: 1, rel: 0 }, events: { onReady: (e) => { try { e.target.playVideo(); } catch (err) { /* يبقى زر التشغيل ظاهر */ } } } }); });
+  } else {
+    const f = document.createElement('iframe');
+    f.src = `https://www.youtube-nocookie.com/embed/${yt}?autoplay=1&rel=0&playsinline=1`; f.title = name; f.allow = 'autoplay; encrypted-media; picture-in-picture; fullscreen'; f.allowFullscreen = true; f.referrerPolicy = 'strict-origin-when-cross-origin';
+    wrap.append(f);
+  }
+  const act = el('div', 'm-actions'), a = el('a', 'btn ghost', 'افتح على يوتيوب'); a.href = `https://www.youtube.com/watch?v=${yt}${list ? '&list=' + list : ''}`; a.target = '_blank'; a.rel = 'noopener'; act.append(a);
   modalBody.append(el('h2', 'm-title', esc(name))); modalBody.lastChild.id = 'mTitle'; if (sub) modalBody.append(el('p', 'm-sub', esc(sub))); modalBody.append(wrap, act);
 }
 

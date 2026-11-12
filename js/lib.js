@@ -1,5 +1,6 @@
 // أدوات مشتركة: خامات، خلفية، منصات، حركة.
 import * as THREE from 'three';
+import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
 
 export const C = {
   night: 0xeef1f8, purple: 0x4953a1, purple2: 0x5f69bd, teal: 0x40b6b2, teal2: 0x2a9d98, ivory: 0xe9e2d2, white: 0xffffff, ink: 0x1b1f4b,
@@ -120,26 +121,47 @@ export function textTexture(text, { size = 64, weight = 800, color = '#1b1f4b', 
   const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4; return t;
 }
 
-// بلّورة (شكل ثلاثي الأبعاد لنقطة الثاء): هرمين يقدروا ينفتحوا
-export function crystal(size = 1, tint = C.purple2) {
-  const g = new THREE.Group();
-  const geo = new THREE.ConeGeometry(size * 0.62, size, 4, 1);
-  const mat = glassMaterial(tint, 0.5);
-  const top = new THREE.Mesh(geo, mat); top.position.y = size / 2;
-  const bot = new THREE.Mesh(geo, mat); bot.rotation.x = Math.PI; bot.position.y = -size / 2;
-  const edgeMat = new THREE.LineBasicMaterial({ color: hdr(tint === C.teal2 ? C.teal2 : C.purple, 1), transparent: true, opacity: 0.85, toneMapped: false });
-  const eg = new THREE.EdgesGeometry(geo);
-  top.add(new THREE.LineSegments(eg, edgeMat)); bot.add(new THREE.LineSegments(eg, edgeMat));
-  const core = new THREE.Mesh(new THREE.OctahedronGeometry(size * 0.2, 0), glow(C.teal, 1)); core.scale.y = 1.5;
-  g.add(top, bot, core);
-  g.userData = { top, bot, core, mat, edgeMat, size, open: 0 };
+// نقطة الثاء من شعار إرث: معيّن مسطّح بحواف ناعمة وبألوان الهوية الصريحة (بدل البلّورات الزجاجية)
+export function crystal(size = 1, tint = C.purple) {
+  const g = new THREE.Group(), s = size * 0.9, flip = new THREE.Group();
+  const mat = new THREE.MeshPhysicalMaterial({ color: tint, roughness: 0.34, metalness: 0, clearcoat: 0.55, clearcoatRoughness: 0.3, envMapIntensity: 0.9, transparent: true, opacity: 1 });
+  const tile = new THREE.Mesh(new RoundedBoxGeometry(s, s, size * 0.2, 4, size * 0.075), mat); tile.rotation.z = Math.PI / 4; tile.userData.noShadow = true;
+  flip.add(tile); g.add(flip);
+  g.userData = { flip, tile, mat, size, open: 0 };
   return g;
 }
-export function setCrystalOpen(g, v) { // v من 0 إلى 1
-  const { top, bot, size } = g.userData; top.position.y = size / 2 + v * size * 0.42; bot.position.y = -size / 2 - v * size * 0.42; g.userData.open = v;
-}
+export function setCrystalOpen(g, v) { g.userData.flip.rotation.y = v * Math.PI; g.userData.open = v; } // v من 0 إلى 1: النقطة تلف نص لفة
 
-// تعليم كل المجسمات داخل مجموعة عشان تنلقط بالماوس
+// ── طبقة واضحة: عنصر HTML يركب فوق سطح ثلاثي الأبعاد ويتحرك معه، وينرسم بدقة الشاشة الكاملة ──
+// (دقة المشهد ثلاثي الأبعاد تنزل على الأجهزة الضعيفة، فالصور والكلام داخل المشهد يتغبشوا. هنا ما يتأثروا)
+const _adj = (m) => [m[4] * m[8] - m[5] * m[7], m[2] * m[7] - m[1] * m[8], m[1] * m[5] - m[2] * m[4], m[5] * m[6] - m[3] * m[8], m[0] * m[8] - m[2] * m[6], m[2] * m[3] - m[0] * m[5], m[3] * m[7] - m[4] * m[6], m[1] * m[6] - m[0] * m[7], m[0] * m[4] - m[1] * m[3]];
+const _mm = (a, b) => { const c = new Array(9); for (let i = 0; i < 3; i++) for (let j = 0; j < 3; j++) c[3 * i + j] = a[3 * i] * b[j] + a[3 * i + 1] * b[3 + j] + a[3 * i + 2] * b[6 + j]; return c; };
+const _basis = (p) => { const m = [p[0], p[2], p[4], p[1], p[3], p[5], 1, 1, 1], a = _adj(m), x = p[6], y = p[7], v0 = a[0] * x + a[1] * y + a[2], v1 = a[3] * x + a[4] * y + a[5], v2 = a[6] * x + a[7] * y + a[8]; return _mm(m, [v0, 0, 0, 0, v1, 0, 0, 0, v2]); };
+export function crispLayer(ctx, cls = '') {
+  const layer = document.createElement('div'); layer.className = 'crisp ' + cls; layer.style.display = 'none'; document.body.append(layer);
+  const corner = new THREE.Vector3(), pts = new Array(8), pp = {}; let on = false;
+  const api = {
+    layer,
+    add(el, w, h) { el.style.width = w + 'px'; el.style.height = h + 'px'; el.style.visibility = 'hidden'; layer.append(el); return { el, w, h, inv: _adj(_basis([0, 0, w, 0, 0, h, w, h])), on: false, bright: -1, z: -1 }; },
+    off(o) { if (o.on) { o.on = false; o.el.style.visibility = 'hidden'; } return 0; },
+    // يركّب العنصر على مستطيل نصف عرضه hw ونصف ارتفاعه hh في إحداثيات المجسم mesh، ويرجع عرضه على الشاشة
+    place(o, mesh, hw, hh, z = 0, bright = 1) {
+      mesh.updateWorldMatrix(true, false);
+      for (let k = 0; k < 4; k++) { corner.set(k & 1 ? hw : -hw, k & 2 ? -hh : hh, z).applyMatrix4(mesh.matrixWorld); ctx.project(corner, pp); if (pp.behind) return api.off(o); pts[k * 2] = pp.x; pts[k * 2 + 1] = pp.y; }
+      const w = Math.hypot(pts[2] - pts[0], pts[3] - pts[1]);
+      if ((pts[2] - pts[0]) * (pts[5] - pts[1]) - (pts[3] - pts[1]) * (pts[4] - pts[0]) < 4 || w < 8) return api.off(o); // معطي ظهره أو صغير مرة
+      const t = _mm(_basis(pts), o.inv), q = 1 / t[8];
+      o.el.style.transform = `matrix3d(${t[0] * q},${t[3] * q},0,${t[6] * q},${t[1] * q},${t[4] * q},0,${t[7] * q},0,0,1,0,${t[2] * q},${t[5] * q},0,1)`;
+      const b = Math.round(bright * 50) / 50; if (b !== o.bright) { o.bright = b; o.el.style.filter = b >= 0.995 ? '' : `brightness(${b})`; }
+      const zi = Math.round(w / 6); if (zi !== o.z) { o.z = zi; o.el.style.zIndex = zi; } // الأقرب فوق
+      if (!o.on) { o.on = true; o.el.style.visibility = 'visible'; }
+      return w;
+    },
+    show() { if (!on) { on = true; layer.style.display = ''; } },
+    hide() { if (on) { on = false; layer.style.display = 'none'; } },
+  };
+  return api;
+}
 export function markPick(root, data, list) {
   root.traverse((o) => { if (o.isMesh) { o.userData.pick = data; list.push(o); } });
 }
