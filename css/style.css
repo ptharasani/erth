@@ -410,4 +410,4 @@ body.intro-done :is(#top, #dock, #rail) { animation: introFade 1s ease both; }
 #loader img { transition: transform .8s var(--ease); }
 #loader.done img { transform: scale(1.16); }
 .ptile { background: #fff; border-radius: 7px; display: grid; place-items: center; }
-.ptile img { max-width: 76%; max-height: 60%; width: auto; height: auto; display: block; }
+.ptile img { position: absolute; left: 12%; top: 19%; width: 76%; height: 62%; object-fit: contain; display: block; }

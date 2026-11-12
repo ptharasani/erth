@@ -263,8 +263,9 @@ function tick(dt) {
   viewTarget(st);
   if (introT < INTRO) {
     introT += dt * introRate; const u = clamp(introT / INTRO, 0, 1), k = u * u * (3 - 2 * u), r = 0.46 + 0.54 * k, drop = (1 - k) * 2.1;
-    camLook.set(tLook.x, tLook.y - drop, tLook.z);
-    camPos.set(tLook.x + (tPos.x - tLook.x) * r + (1 - k) * 0.9, tLook.y + (tPos.y - tLook.y) * r - drop - (1 - k) * 0.9, tLook.z + (tPos.z - tLook.z) * r);
+    const lx = tLook.x * k; // في اللقطة القريبة الكاميرا تتوسط العمود نفسه، وترجع لمكانها مع الابتعاد
+    camLook.set(lx, tLook.y - drop, tLook.z);
+    camPos.set(lx + (tPos.x - tLook.x) * r + (1 - k) * 0.5, tLook.y + (tPos.y - tLook.y) * r - drop - (1 - k) * 0.9, tLook.z + (tPos.z - tLook.z) * r);
     if (u > 0.58) endIntro();
   } else {
   camPos.x = damp(camPos.x, tPos.x, 2.8, dt); camPos.y = damp(camPos.y, tPos.y, 2.8, dt); camPos.z = damp(camPos.z, tPos.z, 2.8, dt); camLook.x = damp(camLook.x, tLook.x, 3.4, dt); camLook.y = damp(camLook.y, tLook.y, 3.4, dt); camLook.z = damp(camLook.z, tLook.z, 3.4, dt);
