@@ -27,7 +27,7 @@ const coarse = matchMedia('(pointer: coarse)').matches;
 // نقيس سرعة الشاشة (60 أو 90 أو 120 فريم) من أول لحظة، عشان نعرف كم وقت معنا لكل فريم
 const probe = []; let probeLast = 0, probing = true;
 requestAnimationFrame(function p(t) { if (!probing) return; if (probeLast) probe.push(t - probeLast); probeLast = t; requestAnimationFrame(p); });
-const lowPct = (arr) => { const d = arr.filter((x) => x > 3 && x < 40).sort((a, b) => a - b); return d.length >= 12 ? d[Math.floor(d.length * 0.2)] / 1000 : 0; };
+const lowPct = (arr) => { const d = arr.filter((x) => x > 3 && x < 40).sort((a, b) => a - b); return d.length >= 45 ? d[Math.floor(d.length * 0.45)] / 1000 : 0; }; // الوسيط تقريباً: الفريمات المتلاحقة بعد أي تعليقة ما تخدعنا ونحسب الشاشة أسرع من حقيقتها
 
 // ── المشهد ──
 const CPR = Math.min(devicePixelRatio || 1, coarse ? 2 : 1.5); // دقة الشاشة النهائية (الكلام والحبيبات). الجوال شاشته أكثف فياخذ سقف أعلى
@@ -168,7 +168,7 @@ function runTrans(dt) {
   }
 }
 function jump(i) {
-  const prev = stations[current]; if (prev !== stations[i]) { prev.leave && prev.leave(); prev.group.visible = false; pose(prev, null); memo[current] = { pr, div }; }
+  const prev = stations[current]; if (prev !== stations[i]) { prev.leave && prev.leave(); prev.group.visible = false; pose(prev, null); memo[current] = { pr, div }; try { localStorage.setItem('erthPR', pr.toFixed(2)); } catch (e) { /* التخزين مقفول */ } }
   if (introT < INTRO) { introT = 9; endIntro(); }
   current = i; activate(); enterT = 0; shadowNow = true;
   if (memo[i]) { div = memo[i].div; if (setPR(memo[i].pr)) gpuAvg = 0; cool = 1.2; } else div = 1; // كل قسم يتذكر الدقة اللي تناسبه
@@ -262,10 +262,10 @@ function tick(dt) {
   const sg = stageFor(st); for (const k of ['cx', 'cy', 'w', 'h']) stage[k] = damp(stage[k], sg[k], 4, dt);
   viewTarget(st);
   if (introT < INTRO) {
-    introT += dt * introRate; const u = clamp(introT / INTRO, 0, 1), k = u * u * (3 - 2 * u), r = 0.46 + 0.54 * k, drop = (1 - k) * 2.1;
+    introT += dt * introRate; const u = clamp(introT / INTRO, 0, 1), k = u * u * (3 - 2 * u), r = 0.46 + 0.54 * k, lift = (1 - k) * 2.45;
     const lx = tLook.x * k; // في اللقطة القريبة الكاميرا تتوسط العمود نفسه، وترجع لمكانها مع الابتعاد
-    camLook.set(lx, tLook.y - drop, tLook.z);
-    camPos.set(lx + (tPos.x - tLook.x) * r + (1 - k) * 0.5, tLook.y + (tPos.y - tLook.y) * r - drop - (1 - k) * 0.9, tLook.z + (tPos.z - tLook.z) * r);
+    camLook.set(lx, tLook.y + lift, tLook.z); // تبدأ عند أعلى العمود وتنزل معه وهو يتركب من فوق لتحت
+    camPos.set(lx + (tPos.x - tLook.x) * r + (1 - k) * 0.5, tLook.y + (tPos.y - tLook.y) * r + lift + (1 - k) * 0.55, tLook.z + (tPos.z - tLook.z) * r);
     if (u > 0.58) endIntro();
   } else {
   camPos.x = damp(camPos.x, tPos.x, 2.8, dt); camPos.y = damp(camPos.y, tPos.y, 2.8, dt); camPos.z = damp(camPos.z, tPos.z, 2.8, dt); camLook.x = damp(camLook.x, tLook.x, 3.4, dt); camLook.y = damp(camLook.y, tLook.y, 3.4, dt); camLook.z = damp(camLook.z, tLook.z, 3.4, dt);
@@ -289,57 +289,56 @@ function tick(dt) {
 }
 
 // ── البداية ──
+// كل مجسم معتم يرمي ظل ويستقبله
+function shadowize(root) {
+  root.traverse((o) => { if (o.userData.noShadow) return; if (o.isMesh && !o.isInstancedMesh && o.material && !Array.isArray(o.material) && !o.material.transparent && o.material.isMeshStandardMaterial) { o.castShadow = true; o.receiveShadow = true; } else if (o.isMesh && (Array.isArray(o.material) || o.isInstancedMesh)) { o.castShadow = true; o.receiveShadow = true; } });
+}
 async function start() {
+  const TM = (window.__erthT = { t0: Math.round(performance.now()) }), mark = (k) => { TM[k] = Math.round(performance.now() - TM.t0); }; // توقيت مراحل الفتح (للفحص)
   ui.init({ go, next: () => go(current + 1), prev: () => go(current - 1), current: 0 });
   const bar = (v) => { loadbar.style.width = `${Math.round(v * 100)}%`; }, prog = (a, b) => (p) => bar(a + (b - a) * p);
-  // المجسمات الثلاثة تتحمل مع بعض قبل ما يبدأ أي شيء، عشان ما في شيء يتجهز والحركة شغالة
-  const pS = loadGLB('assets/models/skeleton.glb', prog(0.05, 0.45));
+  // فتح سريع: ما ننتظر إلا الهيكل (البداية تحتاجه). مجسمات العضلات والجلد تكمل تحميلها في الخلفية وقسم الجسم يتركب لما توصل،
+  // وباقي الأقسام تتجهز لكرت الشاشة واحد واحد بعد المقدمة بدل ما الزائر ينتظرها كلها قدام شاشة تحميل.
+  const pS = loadGLB('assets/models/skeleton.glb', prog(0.05, 0.9));
   const pM = loadGLB('assets/models/muscles.glb').catch((e) => { console.warn('muscles', e); return null; });
   const pK = loadGLB('assets/models/skin.glb').catch((e) => { console.warn('skin', e); return null; });
-  ctx.assets.skeleton = await pS; bar(0.5); ctx.assets.muscles = await pM; bar(0.62); ctx.assets.skin = await pK; bar(0.68);
+  ctx.assets.skeleton = await pS; mark('skeleton');
   try { ctx.assets.skeleton.updateMatrixWorld(true); fx = createFx({ scene, skeleton: ctx.assets.skeleton, textEl: document.getElementById('fxText') }); } catch (e) { console.warn('fx', e); fx = null; }
-  await document.fonts.ready.catch(() => {});
-  const makers = [createHero, createAbout, createBody, createTools, createTeam, createPodcast, createLibrary, createPartners, createContact];
-  stations = makers.map((mk, i) => { const s = mk(ctx); s.home = i * SP; s.group.position.x = s.home; s.group.visible = false; scene.add(s.group); bar(0.7 + (i + 1) * 0.03); return s; });
-  // كل مجسم معتم يرمي ظل ويستقبله
-  scene.traverse((o) => { if (o.userData.noShadow) return; if (o.isMesh && !o.isInstancedMesh && o.material && !Array.isArray(o.material) && !o.material.transparent && o.material.isMeshStandardMaterial) { o.castShadow = true; o.receiveShadow = true; } else if (o.isMesh && (Array.isArray(o.material) || o.isInstancedMesh)) { o.castShadow = true; o.receiveShadow = true; } });
-  const h = STATIONS.findIndex((s) => '#' + s.id === location.hash); current = h > 0 ? h : 0;
+  await Promise.race([document.fonts.ready.catch(() => {}), new Promise((r) => setTimeout(r, 1200))]); mark('fonts');
+  const makers = [createHero, createAbout, createBody, createTools, createTeam, createPodcast, createLibrary, createPartners, createContact], BODY = makers.indexOf(createBody);
+  const mount = (st, i) => { st.home = i * SP; st.group.position.x = st.home; st.group.visible = false; scene.add(st.group); shadowize(st.group); return st; };
+  const bodyStub = () => ({ id: 'body', stub: true, group: new THREE.Group(), pickables: [], view: { look: [0, 3.2, 0], dir: [0, 0.03, 1], fitW: 6, fitH: 7.5 }, update() {}, resize() {} });
+  stations = makers.map((mk, i) => mount(i === BODY ? bodyStub() : mk(ctx), i)); mark('stations');
+  const h = STATIONS.findIndex((x) => '#' + x.id === location.hash); current = h > 0 ? h : 0;
   const r0 = lowPct(probe); probing = false; if (r0) refresh = clamp(r0, 1 / 165, 1 / 50);
   resize(); camera.updateProjectionMatrix();
-  // نجهّز كل الخامات والصور وقت التحميل، ونرسم كل قسم مرة وحدة مخفية عشان مجسماته تنرفع لكرت الشاشة الآن مو وقت التنقل
-  stations.forEach((s) => { s.group.visible = true; s.prepare && s.prepare(); });
-  camera.position.copy(camPos); camera.lookAt(camLook); camera.updateMatrixWorld();
-  try { await renderer.compileAsync(scene, camera); } catch (e) { console.warn(e); }
-  const warm = new THREE.WebGLRenderTarget(64, 64);
-  for (const s of stations) {
-    stations.forEach((o) => { o.group.visible = o === s; }); Object.assign(stage, stageFor(s)); viewTarget(s);
-    camera.position.copy(tPos); camera.lookAt(tLook); camera.updateMatrixWorld(); placeLights(s); renderer.shadowMap.needsUpdate = true;
-    try { renderer.setRenderTarget(warm); renderer.render(scene, camera); } catch (e) { console.warn(e); }
-  }
-  stations.forEach((s) => { s.group.visible = false; });
-  if (fx) { fx.resize(W, H, camera.fov); fx.showAll(true); try { await renderer.compileAsync(fx.scene, fx.camera); renderer.setRenderTarget(warm); renderer.render(fx.scene, fx.camera); } catch (e) { console.warn(e); } fx.showAll(false); }
-  renderer.setRenderTarget(null); warm.dispose(); bar(0.97);
-  const st = stations[current]; const sg = stageFor(st); Object.assign(stage, sg); viewTarget(st); camPos.copy(tPos).add(new THREE.Vector3(0, 1, 6)); camLook.copy(tLook);
+  const st = stations[current]; st.group.visible = true; st.prepare && st.prepare();
+  Object.assign(stage, stageFor(st)); viewTarget(st); camPos.copy(tPos).add(new THREE.Vector3(0, 1, 6)); camLook.copy(tLook);
   camera.position.copy(camPos); camera.lookAt(camLook); camera.updateMatrixWorld(); placeLights(st);
+  try { await renderer.compileAsync(st.group, camera, scene); } catch (e) { console.warn(e); } mark('compile'); // القسم الحالي بس، والباقي في الخلفية
   started = true; activate();
-  // نقيس كم ياخذ الفريم على هذا الجهاز ونختار دقة البداية على أساسه، بدل ما نبدأ ثقيل ونخفف قدام المستخدم
-  try {
-    // بدون قياس مباشر (آيفون مثلاً) نبدأ قريب من دقة الشاشة وننزل لو علّقت، بدل ما نبقى على دقة واطية للأبد
-    const base = post.hasTimer ? Math.min(CPR, 1) : coarse ? CPR * 0.85 : Math.min(CPR, 1); setPR(base, true);
-    if (post.hasTimer) {
-      const got = []; const keep = post.onSample; post.onSample = (ms) => got.push(ms);
-      for (let i = 0; i < 9; i++) { renderer.shadowMap.needsUpdate = !coarse; draw(); await new Promise((r) => setTimeout(r, 16)); }
-      post.poll(); post.onSample = keep; got.splice(0, 2); got.sort((a, b) => a - b);
-      if (got.length >= 3) {
-        const ms = got[Math.floor(got.length / 2)], want = base * Math.sqrt(Math.max(0.15, (refresh * 1000 * budgetK * 0.92 / ms - 0.2) / 0.8)); setPR(clamp(want, PR_MIN, CPR), true);
-        window.__erthBench = { ms: +ms.toFixed(1), pr: +pr.toFixed(2), hz: Math.round(1 / refresh) };
-      }
-    }
-  } catch (e) { console.warn(e); }
-  bar(1);
+  // دقة البداية: آخر دقة ناسبت هذا الجهاز لو زارنا قبل، وإلا قيمة متوسطة والضابط يعدّلها خلال ثواني
+  let saved = 0; try { saved = +localStorage.getItem('erthPR') || 0; } catch (e) { /* التخزين مقفول */ }
+  setPR(saved ? clamp(saved, PR_MIN, CPR) : post.hasTimer ? Math.min(CPR, 1) : coarse ? CPR * 0.85 : Math.min(CPR, 1), true);
+  bar(1); mark('ready');
   window.__erth = { tick: (n = 60, dt = 1 / 30) => { for (let i = 0; i < n; i++) tick(dt); }, go, jump, ctx, pick, stations, pause: (v = true) => { paused = v; }, setPR, step, dbg: { post, key, scene, renderer }, get stats() { return { pr: +pr.toFixed(2), hz: Math.round(1 / refresh), gpuMs: +gpuAvg.toFixed(1), tier, div, budgetK: +budgetK.toFixed(2) }; }, get fx() { return fx; }, get current() { return current; } }; // للفحص والتجربة
   requestAnimationFrame(frame);
-  // الافتتاحية: تختفي شاشة التحميل، والقسم يبدأ حركته من أولها (المجسمات تدخل من تحت)
-  setTimeout(() => { document.getElementById('loader').classList.add('done'); const s0 = stations[current]; s0.enter && s0.enter(); enterT = 0; if (s0.ownIntro && document.body.classList.contains('intro')) introT = 0; else endIntro(); if (!s0.ownIntro) { trans = { to: current, t: 0, phase: 1, mv: MOVES[3], dir: 1 }; switching = true; ui.fxIn(true); } }, 350);
+  // الافتتاحية: شاشة الشعار تختفي فوراً، والقسم يبدأ حركته من أولها
+  { document.getElementById('loader').classList.add('done'); const s0 = stations[current]; s0.enter && s0.enter(); enterT = 0; if (s0.ownIntro && document.body.classList.contains('intro')) introT = 0; else endIntro(); if (!s0.ownIntro) { trans = { to: current, t: 0, phase: 1, mv: MOVES[3], dir: 1 }; switching = true; ui.fxIn(true); } }
+  // ── في الخلفية ──
+  const calm = () => new Promise((res) => { const w = () => (introT < INTRO || switching || enterT < 1.2 ? setTimeout(w, 300) : res()); w(); }); // ننتظر لين تهدأ الحركة عشان التجهيز ما يقطّعها
+  const ready = async (s0) => { s0.prepare && s0.prepare(); try { await renderer.compileAsync(s0.group, camera, scene); } catch (e) { console.warn(e); } };
+  Promise.all([pM, pK]).then(async ([m, k]) => { // قسم الجسم يتركب لما توصل مجسماته
+    ctx.assets.muscles = m; ctx.assets.skin = k; mark('models');
+    if (current !== BODY) await calm();
+    const old = stations[BODY], body = mount(createBody(ctx), BODY); body.resize && body.resize(); scene.remove(old.group); stations[BODY] = body; mark('body');
+    if (current === BODY) { memo[BODY] = null; activate(); shadowNow = true; } else await ready(body);
+  }).catch((e) => console.warn('body', e));
+  (async () => { // باقي الأقسام: خاماتها وبرامج الرسم تتجهز واحد واحد
+    await calm();
+    if (fx) { try { fx.resize(W, H, camera.fov); await renderer.compileAsync(fx.scene, fx.camera); } catch (e) { console.warn(e); } }
+    for (let i = 0; i < stations.length; i++) { const s0 = stations[i]; if (s0.stub || i === current) continue; await calm(); await ready(s0); await new Promise((r) => setTimeout(r, 250)); }
+    mark('warm');
+  })();
 }
-start().catch((e) => { console.error(e); document.getElementById('loadtxt').textContent = 'تعذّر تحميل الجولة. حدّث الصفحة وحاول مرة ثانية.'; });
+start().catch((e) => { console.error(e); document.getElementById('loader').classList.add('err'); document.getElementById('loadtxt').textContent = 'تعذّر فتح الموقع. حدّث الصفحة وحاول مرة ثانية.'; });

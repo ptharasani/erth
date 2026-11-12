@@ -411,3 +411,8 @@ body.intro-done :is(#top, #dock, #rail) { animation: introFade 1s ease both; }
 #loader.done img { transform: scale(1.16); }
 .ptile { background: #fff; border-radius: 7px; display: grid; place-items: center; }
 .ptile img { position: absolute; left: 12%; top: 19%; width: 76%; height: 62%; object-fit: contain; display: block; }
+
+/* شاشة الشعار: بدون شريط تحميل ولا جملة انتظار، وتختفي أول ما يجهز العمود */
+#loader .bar, #loader p { display: none; }
+#loader.err p { display: block; }
+#loader { transition: opacity .45s ease, visibility .45s; }

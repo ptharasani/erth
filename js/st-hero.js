@@ -1,4 +1,4 @@
-// البداية: عمود فقري حقيقي مع الحوض يتكوّن قطعة قطعة (مثل شعار إرث)، وهو خريطة الموقع:
+// البداية: عمود فقري حقيقي مع الحوض يتكوّن قطعة قطعة من فوق لتحت (مثل شعار إرث)، وهو خريطة الموقع:
 // كل مجموعة فقرات تمثل قسم، تضيء عند التأشير وتودّيك له عند الضغط.
 import * as THREE from 'three';
 import { podium, crystal, C, damp, clamp, easeOut, mergeMeshes } from './lib.js';
@@ -33,7 +33,7 @@ export default function createHero(ctx) {
   parts.forEach((p) => { if (p.disc) { let best = verts[0]; for (const q of verts) if (Math.abs(q.c.y - p.c.y) < Math.abs(best.c.y - p.c.y)) best = q; p.g = best.g; } });
   ['right-hip-bone', 'left-hip-bone', 'coccyx'].forEach((n) => add(n, GROUPS.length - 1, 'h')); // الحوض مع آخر مجموعة
   parts.sort((a, b) => a.c.y - b.c.y); const spineParts = parts.filter((p) => p.kind !== 'h');
-  spineParts.forEach((p, i) => { p.rank = i / spineParts.length; }); parts.forEach((p) => { if (p.kind === 'h') p.rank = -1; }); // الترتيب من تحت لفوق، والحوض أول شي
+  spineParts.forEach((p, i) => { p.rank = 1 - (i + 1) / spineParts.length; }); parts.forEach((p) => { if (p.kind === 'h') p.rank = 1.04; }); // الترتيب من فوق لتحت دايماً، والحوض آخر شي
 
   const box = new THREE.Box3().setFromObject(spine), size = box.getSize(new THREE.Vector3()), center = box.getCenter(new THREE.Vector3());
   const HGT = 6.3, S = HGT / size.y, BASE = 0.45; spine.position.copy(center).multiplyScalar(-1); pivot.scale.setScalar(S); pivot.position.y = BASE + HGT / 2;
@@ -70,23 +70,23 @@ export default function createHero(ctx) {
   // توزيع الأسماء بمسافات متساوية على طول العمود
   const yTop = labels[0].y, yBot = labels[labels.length - 1].y; labels.forEach((l, i) => { l.ly = yTop + (yBot - yTop) * (i / (labels.length - 1)); });
 
-  let clockT = 0, meshHover = -1, labelHover = -1, active = false, tilt = 0, first = true, T = { d0: 0.3, span: 1.75, dur: 0.8, fall: 1.5, labels: 2.75 };
+  let clockT = 0, meshHover = -1, labelHover = -1, active = false, tilt = 0, first = true, T = { d0: 0.25, span: 1.7, dur: 0.75, fall: 1.1, labels: 2.75 };
   const world = new THREE.Vector3(), scr = {}, scr2 = {}, setT = (e, t) => { if (e._t !== t) { e._t = t; e.style.transform = t; } };
   const st = {
     id: 'hero', group, pickables, ownIntro: true, fastPick: true,
     view: null,
     resize() { labels.forEach((l) => { l.bw = 0; }); st.view = ctx.mobile() ? { look: [-0.95, BASE + HGT / 2 - 0.35, 0], dir: [0.06, 0.03, 1], fitW: 5.4, fitH: HGT + 1.6 } : { look: [-0.75, BASE + HGT / 2 - 0.32, 0], dir: [0.14, 0.03, 1], fitW: 5.6, fitH: HGT + 1.5 }; },
-    enter() { T = first ? { d0: 0.3, span: 1.75, dur: 0.8, fall: 1.5, labels: 2.75 } : { d0: 0.1, span: 0.7, dur: 0.6, fall: 0.5, labels: 1.0 }; first = false; clockT = 0; active = true; labels.forEach((l) => { l.el.style.display = ''; l.el.style.opacity = 0; l.op = 0; }); },
+    enter() { T = first ? { d0: 0.25, span: 1.7, dur: 0.75, fall: 1.1, labels: 2.75 } : { d0: 0.1, span: 0.7, dur: 0.6, fall: 0.5, labels: 1.0 }; first = false; clockT = 0; active = true; labels.forEach((l) => { l.el.style.display = ''; l.el.style.opacity = 0; l.op = 0; }); },
     leave() { active = false; meshHover = labelHover = -1; labels.forEach((l) => { l.el.style.display = 'none'; }); },
     update(dt, t, on) {
       clockT += dt; tilt = damp(tilt, ctx.pointer.inside ? ctx.pointer.x : 0, 3, dt);
       pivot.rotation.y = 0.5 + Math.sin(t * 0.22) * 0.4 + tilt * 0.3; pivot.position.y = BASE + HGT / 2 + Math.sin(t * 0.7) * 0.04;
       const hg = labelHover >= 0 ? labelHover : meshHover;
       for (const p of parts) {
-        p.e = easeOut(clamp((clockT - (p.rank < 0 ? 0 : T.d0 + p.rank * T.span)) / T.dur, 0, 1)); p.hot = damp(p.hot, p.g === hg ? 1 : 0, 9, dt);
+        p.e = easeOut(clamp((clockT - (T.d0 + p.rank * T.span)) / T.dur, 0, 1)); p.hot = damp(p.hot, p.g === hg ? 1 : 0, 9, dt);
         const s = 1 + p.hot * (p.kind === 'h' ? 0.03 : 0.12), k = 1 - p.e;
         p.holder.scale.setScalar(s);
-        const hp = p.holder.position.set(p.c.x * (1 - s) + p.dirv.x * k * 0.12, p.c.y * (1 - s) + p.dirv.y * k * 0.12 + k * T.fall / S, p.c.z * (1 - s) + p.dirv.z * k * 0.12), o = p.i * 4;
+        const hp = p.holder.position.set(p.c.x * (1 - s) + p.dirv.x * k * 0.12, p.c.y * (1 - s) + p.dirv.y * k * 0.12 - k * T.fall / S, p.c.z * (1 - s) + p.dirv.z * k * 0.12), o = p.i * 4;
         pt[o] = hp.x; pt[o + 1] = hp.y; pt[o + 2] = hp.z; pt[o + 3] = s; pt[NP * 4 + o] = p.e; pt[NP * 4 + o + 1] = (p.disc ? 0.35 : 0) + p.hot * (p.disc ? 1.4 : p.kind === 'h' ? 0.35 : 0.75);
       }
       ptTex.needsUpdate = true;
