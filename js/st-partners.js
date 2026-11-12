@@ -1,7 +1,7 @@
 // شركاؤنا: جدار شعارات مرتب. كل شعار على بلاطة بيضاء واضحة فوق لوح زجاجي، يقترب عند التأشير ويظهر اسمه.
 import * as THREE from 'three';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
-import { C, damp, clamp, easeOut, softFloor } from './lib.js';
+import { C, damp, clamp, easeOut, softFloor, crispLayer } from './lib.js';
 import { PARTNERS } from './content.js';
 
 const TW = 2.2, TH = 1.0, GAP = 0.26, TEX_W = 660, TEX_H = 300;
@@ -17,7 +17,7 @@ function tileTexture(url, onReady) {
 }
 
 export default function createPartners(ctx) {
-  const { ui } = ctx;
+  const { ui } = ctx, crisp = crispLayer(ctx, 'par'); // الشعارات تنرسم كعناصر HTML فوق البلاطات عشان تبقى واضحة
   const group = new THREE.Group(), wall = new THREE.Group(), pickables = [], items = []; group.add(wall);
   // اللوح الخلفي: زجاج فاتح بلون بنفسجي خفيف، البلاطات ترمي عليه ظل ناعم
   const slabMat = new THREE.MeshStandardMaterial({ color: 0xdfe3f6, roughness: 0.5, metalness: 0, envMapIntensity: 0.6 });
@@ -29,6 +29,7 @@ export default function createPartners(ctx) {
     const tile = new THREE.Mesh(tileGeo, [sideMat, sideMat, sideMat, sideMat, front, sideMat]);
     const frame = new THREE.LineSegments(frameGeo, new THREE.LineBasicMaterial({ color: C.teal, transparent: true, opacity: 0, toneMapped: false })); frame.position.z = 0.05; tile.add(frame);
     const it = { file, name, i, tile, front, frame, base: new THREE.Vector3(), k: 0, col: 0, row: 0 }; tile.userData.pick = it; pickables.push(tile); wall.add(tile); items.push(it);
+    it.o = crisp.add(ui.el('div', 'ptile', `<img src="assets/img/partners/${file}.webp" alt="" draggable="false" decoding="async">`), 330, 150);
   });
   const floor = softFloor(4.4); group.add(floor);
 
@@ -47,9 +48,9 @@ export default function createPartners(ctx) {
     id: 'partners', group, pickables, view: null, resize: layout,
     prepare() { if (loaded) return; loaded = true; items.forEach((it) => { const t = tileTexture(`assets/img/partners/${it.file}.webp`, (x) => { ctx.renderer.initTexture(x); }); it.front.map = it.front.emissiveMap = t; it.front.needsUpdate = true; }); },
     enter() { inT = 0; },
-    leave() { hover = null; },
+    leave() { hover = null; crisp.hide(); },
     update(dt, t) {
-      inT += dt; yawT = damp(yawT, 0, 2.2, dt); yaw = damp(yaw, yawT, 6, dt);
+      inT += dt; crisp.show(); yawT = damp(yawT, 0, 2.2, dt); yaw = damp(yaw, yawT, 6, dt);
       tx = damp(tx, ctx.pointer.inside ? ctx.pointer.x : 0, 3, dt); ty = damp(ty, ctx.pointer.inside ? ctx.pointer.y : 0, 3, dt);
       wall.rotation.y = yaw + tx * 0.1; wall.rotation.x = -ty * 0.05;
       for (const it of items) {
@@ -57,7 +58,7 @@ export default function createPartners(ctx) {
         const e = easeOut(clamp((inT - 0.12 - (it.row * 0.07 + it.col * 0.05)) / 0.6, 0, 1)); // تدخل البلاطات صف ورا صف
         it.tile.position.set(it.base.x, it.base.y, it.base.z + (1 - e) * 1.4 + Math.sin(t * 0.9 + it.col * 0.9 + it.row * 0.7) * 0.025 + it.k * 0.42);
         it.tile.scale.setScalar(Math.max(0.001, (0.7 + 0.3 * e) * (1 + it.k * 0.07))); it.tile.rotation.y = (1 - e) * 0.5;
-        it.frame.material.opacity = it.k * 0.95; it.front.emissiveIntensity = 0.16 + it.k * 0.1;
+        it.frame.material.opacity = it.k * 0.95; it.front.emissiveIntensity = 0.16 + it.k * 0.1; crisp.place(it.o, it.tile, TW / 2 - 0.02, TH / 2 - 0.02, 0.046, 1);
       }
     },
     hover(it) { hover = it; if (it) ui.showTip(it.name, 'من شركاء مركز إرث', ctx.pointer.px, ctx.pointer.py); else ui.hideTip(); },

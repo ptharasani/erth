@@ -1,7 +1,7 @@
 // تواصل واحجز: شعار إرث كبير وأيقونات مجسمة، كل أيقونة تودّيك مباشرة للقناة.
 import * as THREE from 'three';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
-import { C, damp, hdr, loadTexture, textTexture, podium, crystal } from './lib.js';
+import { C, damp, hdr, loadTexture, textTexture, podium, crystal, crispLayer } from './lib.js';
 import { CONTACT } from './content.js';
 
 // رسم رمز كل قناة على نسيج
@@ -30,7 +30,9 @@ const CHANNELS = [
 export default function createContact(ctx) {
   const { ui } = ctx;
   const group = new THREE.Group(), pickables = [], items = [];
-  const logo = new THREE.Mesh(new THREE.PlaneGeometry(2.7, 3.82), new THREE.MeshBasicMaterial({ map: loadTexture('assets/img/erth-logo.webp'), transparent: true, depthWrite: false })); group.add(logo);
+  const logo = new THREE.Mesh(new THREE.PlaneGeometry(2.7, 3.82), new THREE.MeshBasicMaterial({ map: loadTexture('assets/img/erth-logo.webp'), transparent: true, depthWrite: false, toneMapped: false, fog: false })); group.add(logo);
+  // الشعار ينرسم كمان كصورة HTML فوق مكانه: يطلع بألوانه الصريحة وبدقة الشاشة الكاملة
+  const crisp = crispLayer(ctx, 'con'), logoImg = new Image(); logoImg.src = 'assets/img/erth-logo.webp'; logoImg.alt = ''; logoImg.draggable = false; const lo = crisp.add(logoImg, 270, 382);
   const gems = [0, 1, 2].map((i) => { const g = crystal(0.34, i === 1 ? C.teal : C.purple); group.add(g); return g; });
   group.add(podium(4.2, C.teal));
   const geo = new RoundedBoxGeometry(1.2, 1.2, 0.34, 5, 0.17);
@@ -49,8 +51,9 @@ export default function createContact(ctx) {
   }
   const st = {
     id: 'contact', group, pickables, view: null, resize: layout,
-    leave() { hover = null; },
+    leave() { hover = null; crisp.hide(); },
     update(dt, t) {
+      crisp.show(); crisp.place(lo, logo, 1.35, 1.91, 0, 1);
       for (const it of items) {
         it.k = damp(it.k, it === hover ? 1 : 0, 8, dt);
         it.holder.position.set(it.base.x, it.base.y + Math.sin(t * 1.1 + it.i) * 0.07 + it.k * 0.18, it.base.z + it.k * 0.5);

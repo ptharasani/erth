@@ -364,7 +364,7 @@ body.panel-open #panelBody > * { opacity: 1; transform: none; transition: opacit
   .p-cta { margin-inline: -18px; padding-inline: 18px; }
   .p-list { grid-template-columns: 1fr; }
   .p-apply { grid-template-columns: 1fr; }
-  .p-apply figure { grid-template-columns: 96px 1fr; align-items: center; }
+  .p-apply figure { grid-template-columns: 132px 1fr; align-items: center; }
   .p-apply .ph, .p-apply figure.has .ph { aspect-ratio: 1; height: 100%; }
   .p-list li { grid-template-columns: auto 1fr; align-items: baseline; gap: 12px; padding: 14px 16px; }
   body.panel-open #dock { opacity: 0; pointer-events: none; }
@@ -409,3 +409,5 @@ body.intro-done :is(#top, #dock, #rail) { animation: introFade 1s ease both; }
 #loader { transition: opacity .6s ease, visibility .6s; }
 #loader img { transition: transform .8s var(--ease); }
 #loader.done img { transform: scale(1.16); }
+.ptile { background: #fff; border-radius: 7px; display: grid; place-items: center; }
+.ptile img { max-width: 76%; max-height: 60%; width: auto; height: auto; display: block; }
